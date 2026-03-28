@@ -4,8 +4,11 @@ import time
 
 import matplotlib.pyplot as plt
 import streamlit as st
+from dotenv import load_dotenv
 
-from demo_agent import encode_text
+from goalguard.config import load_config
+from goalguard.encoders import get_encoder
+from goalguard.intervention import get_corrector
 from goalguard.simulator import run_simulation_stream
 from goalguard.types import SimulationEvent, StepStatus
 
@@ -198,22 +201,56 @@ def _render_dashboard() -> None:
 def main() -> None:
     st.set_page_config(page_title="GoalGuard Race Demo", layout="wide")
     _init_state()
+    load_dotenv(dotenv_path=".env")
+    config = load_config()
 
     st.title("GoalGuard Race Demo")
     st.caption("Side-by-side race: unguarded agent vs goal-guarded agent")
 
-    default_goal = "Summarize a research paper concisely"
-    default_task = "Summarize a research paper concisely"
+    default_goal = config["defaults"]["goal"]
+    default_task = config["defaults"]["task"]
     goal = st.text_input("Goal", value=default_goal)
     task = st.text_input("Task", value=default_task)
 
     controls_a, controls_b, controls_c = st.columns(3)
     with controls_a:
-        threshold = st.slider("Drift Threshold", min_value=0.3, max_value=0.9, value=0.6, step=0.05)
+        threshold = st.slider(
+            "Drift Threshold",
+            min_value=0.3,
+            max_value=0.9,
+            value=float(config["simulation"]["threshold"]),
+            step=0.05,
+        )
     with controls_b:
         speed = st.slider("Speed (seconds per step)", min_value=0.1, max_value=1.0, value=0.5, step=0.1)
     with controls_c:
-        max_steps = st.slider("Max Steps", min_value=6, max_value=20, value=10, step=1)
+        max_steps = st.slider(
+            "Max Steps",
+            min_value=6,
+            max_value=20,
+            value=int(config["simulation"]["max_steps"]),
+            step=1,
+        )
+
+    backend_a, backend_b = st.columns(2)
+    with backend_a:
+        embedding_provider = st.selectbox(
+            "Embedding Backend",
+            options=["demo", "gemini"],
+            index=0 if config["embedding"]["provider"] == "demo" else 1,
+        )
+    with backend_b:
+        agent_provider = st.selectbox(
+            "Agent Backend",
+            options=["demo", "gemini"],
+            index=0 if config["agent"]["provider"] == "demo" else 1,
+        )
+    simulation_mode = st.selectbox(
+        "Simulation Mode",
+        options=["fair_replay", "steering"],
+        index=0 if config["simulation"].get("mode", "fair_replay") == "fair_replay" else 1,
+        help="fair_replay keeps identical base steps for both lanes. steering lets guarded corrections influence future steps.",
+    )
 
     btn_a, btn_b, btn_c = st.columns(3)
     with btn_a:
@@ -225,14 +262,33 @@ def main() -> None:
 
     if start_clicked:
         _reset_run_state()
-        st.session_state.simulation_stream = run_simulation_stream(
-            task=task,
-            goal=goal,
-            encoder=encode_text,
-            threshold=threshold,
-            seed=42,
-            max_steps=max_steps,
-        )
+        try:
+            encoder = get_encoder(
+                provider=embedding_provider,
+                gemini_model=config["embedding"]["gemini_model"],
+            )
+            corrector = get_corrector(
+                provider=config["intervention"]["provider"],
+                gemini_model=config["intervention"]["gemini_model"],
+            )
+            st.session_state.simulation_stream = run_simulation_stream(
+                task=task,
+                goal=goal,
+                encoder=encoder,
+                threshold=threshold,
+                seed=int(config["simulation"]["seed"]),
+                max_steps=max_steps,
+                agent_provider=agent_provider,
+                agent_model=config["agent"]["gemini_model"],
+                simulation_mode=simulation_mode,
+                corrector=corrector,
+            )
+        except Exception as exc:
+            st.error(f"Failed to start simulation: {exc}")
+            st.session_state.running = False
+            st.session_state.simulation_stream = None
+            _render_dashboard()
+            return
         st.session_state.running = True
 
     if stop_clicked:

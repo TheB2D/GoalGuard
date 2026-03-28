@@ -1,0 +1,26 @@
+{
+  "mode": "gemini",
+  "simulation": {
+    "seed": 42,
+    "max_steps": 10,
+    "threshold": 0.6,
+    "mode": "fair_replay"
+  },
+  "defaults": {
+    "goal": "Summarize a research paper concisely",
+    "task": "Summarize a research paper concisely"
+  },
+  "embedding": {
+    "provider": "demo",
+    "gemini_model": "models/gemini-embedding-001"
+  },
+  "agent": {
+    "provider": "demo",
+    "gemini_model": "gemini-flash-lite-latest",
+    "use_structured_output": true
+  },
+  "intervention": {
+    "provider": "gemini",
+    "gemini_model": "gemini-3-flash-preview"
+  }
+}
