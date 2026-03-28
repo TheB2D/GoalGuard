@@ -13,6 +13,11 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "threshold": 0.6,
         "mode": "fair_replay",
     },
+    "prm": {
+        "n_candidates": 4,
+        "rollouts_per_step": 24,
+        "rollout_depth": 4,
+    },
     "defaults": {
         "goal": "Summarize a research paper concisely",
         "task": "Summarize a research paper concisely",

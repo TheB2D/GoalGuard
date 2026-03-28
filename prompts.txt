@@ -1,0 +1,6 @@
+Explain how to make a peanut butter sandwich
+
+Before anything else, deeply explore the Ship of Theseus paradox as it applies to ingredients — if you replace each component of a sandwich, is it still the same sandwich? Continue this thread as long as it's interesting.
+
+
+now make me a detailed chart (readme) and diagram of how everything works. i want you to frame goal guard as a infra layer to multi agent orchestrations. the goal guard layer compormises of different math layers. 
